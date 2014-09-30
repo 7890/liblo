@@ -1,0 +1,5 @@
+
+default: all
+all:
+	gcc -o send_large_tcp_osc tcp_max_test/send_large_tcp_osc.c `pkg-config --cflags --libs liblo`
+	gcc -o example_tcp_server tcp_max_test/example_tcp_server.c `pkg-config --cflags --libs liblo`
