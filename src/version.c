@@ -52,7 +52,9 @@ void lo_version(char *verstr, int verstr_size,
     }
 #endif
 
-    if (verstr) strncpy(verstr, PACKAGE_VERSION, verstr_size);
+//    if (verstr) strncpy(verstr, PACKAGE_VERSION, verstr_size);
+//tmp, for easy distincion when reading liblo info
+    if (verstr) strncpy(verstr, "0.28 fixmax", verstr_size);
 
     _ltmaj = _lt[0] - _lt[2];
     _ltmin = _lt[2];
