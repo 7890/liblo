@@ -93,8 +93,7 @@ void error(int num, const char *msg, const char *path)
     fflush(stdout);
 }
 
-/* catch any incoming messages, display them, and send them
- * back. */
+/* catch any incoming messages, display them */
 int default_handler(const char *path, const char *types, lo_arg ** argv,
                     int argc, void *data, void *user_data)
 {
@@ -107,15 +106,15 @@ int default_handler(const char *path, const char *types, lo_arg ** argv,
 
     count ++;
 
-    printf("path: <%s>\n", path);
+    fprintf(stderr,"path: <%s>\n", path);
     for (i = 0; i < argc; i++) {
-        printf("arg %d '%c' ", i, types[i]);
+        fprintf(stderr,"arg %d '%c' ", i, types[i]);
         lo_arg_pp((lo_type)types[i], argv[i]);
-        printf("\n");
+        fprintf(stderr,"\n");
     }
 
     if (!a) {
-        printf("Couldn't get message source, quitting.\n");
+        fprintf(stderr,"Couldn't get message source, quitting.\n");
         done = 1;
         return 0;
     }
