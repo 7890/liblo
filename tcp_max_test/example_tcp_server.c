@@ -110,6 +110,7 @@ int default_handler(const char *path, const char *types, lo_arg ** argv,
     for (i = 0; i < argc; i++) {
         fprintf(stderr,"arg %d '%c' ", i, types[i]);
         lo_arg_pp((lo_type)types[i], argv[i]);
+	fflush(stdout);
         fprintf(stderr,"\n");
     }
 
