@@ -52,15 +52,23 @@ void errorHandler(int num, const char *msg, const char *where)
 int messageHandler(const char *path, const char *types, lo_arg ** argv,
                    int argc, lo_message msg, void *user_data)
 {
-    int i;
+    //print source host/ip
+    printf("%s:%s ",
+    lo_address_get_hostname(lo_message_get_source(msg)),
+    lo_address_get_port(lo_message_get_source(msg)));
 
     printf("%s %s", path, types);
 
+    int i;
     for (i = 0; i < argc; i++) {
         printf(" ");
         lo_arg_pp((lo_type) types[i], argv[i]);
     }
     printf("\n");
+    //allow shell hacks like
+    //oscdump 7777 | grep "/hi"
+    //oscdump 7777 > /tmp/my.log
+    fflush(stdout);
 
     return 0;
 }
