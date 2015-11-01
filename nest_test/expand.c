@@ -66,13 +66,10 @@ void print_blob(lo_blob b, int indent)
 	else
 	{
 		lo_message msg=lo_message_deserialise(lo_blob_dataptr(b),lo_blobsize(b)-4,NULL); //-4!
-		int arg_count=lo_message_get_argc(msg);
-		const char *types=lo_message_get_types(msg);
-		lo_arg ** arg_values=lo_message_get_argv(msg);
-//		fprintf(stderr,"msg length %d types %s\n",lo_message_length(msg,path),types);
 		indent++;
 		//======
 		print_msg(msg,path,indent);
+		lo_message_free(msg);
 	}
 }
 
@@ -121,8 +118,6 @@ void print_msg(lo_message msg, const char * path, int indent)
 		}
 	}
 
-	lo_message_free(msg);
-
 	return;
 }
 
@@ -142,6 +137,9 @@ int main(int argc, char *argv[])
 
 	//======
 	print_msg(msg,path,0);
+	//print_msg(msg,path,0);
+
+	lo_message_free(msg);
 
 	return 0;
 }
