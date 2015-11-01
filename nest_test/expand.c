@@ -7,38 +7,10 @@
 /*
 //tb/151101
 
-//gcc -o expand expand.c -llo && ./expand /tmp/a
+//gcc -o expand expand.c -llo && ./expand osc.dump
 
-//example of /tmp/a (base64 encoded)
-//extract to binary: echo -n "<string below>" | base64 -d > /tmp/a
+//also see nest.c
 
-L3Rlc3QAAAAsaWZzYgAAAAAAAIA+TMzNZm9vAAAAAHAvAAAALGJiYmlpZgAAAAAULwAAACxzAABndWd1cyBhYWFhAAAAAAAMzczMPc3MTD6amZk+AAAALC8AAAAsc2IAaW5uZXIAAAAAAAAYLwAAACxmZmYAAAAAPczMzT5MzM0+mZmaAAAAAQAAAAJAWZma
-
-//full test
-
-echo -n "L3Rlc3QAAAAsaWZzYgAAAAAAAIA+TMzNZm9vAAAAAHAvAAAALGJiYmlpZgAAAAAULwAAACxzAABndWd1cyBhYWFhAAAAAAAMzczMPc3MTD6amZk+AAAALC8AAAAsc2IAaW5uZXIAAAAAAAAYLwAAACxmZmYAAAAAPczMzT5MzM0+mZmaAAAAAQAAAAJAWZma" | base64 -d > /tmp/a && gcc -o expand expand.c -llo && ./expand /tmp/a
-
-//alternatively use nest.c
-
-//expected structure / print output
-
-/test ifsb
-i 128
-f 0.200000
-s foo
-b 116 / bbbiif
-   b 24 / s
-      s gugus aaaa
-   b 16 (blob with unknown encoding)
-   b 48 / sb
-      s inner
-      b 28 / fff
-         f 0.100000
-         f 0.200000
-         f 0.300000
-   i 1
-   i 2
-   f 3.400000
 */
 
 void print_blob(lo_blob b, int indent);
@@ -100,10 +72,10 @@ void print_msg(lo_message msg, const char * path, int indent)
 			fprintf(stderr,"b %d ",lo_blobsize((lo_blob)arg_values[i]));
 			print_blob((lo_blob)arg_values[i],indent);
 		}
-		else if(types[i]=='s')
+		else if(types[i]=='f')
 		{
 			print_indent(indent);
-			fprintf(stderr,"s %s\n",&arg_values[i]->s);
+			fprintf(stderr,"f %f\n",arg_values[i]->f);
 		}
 		else if(types[i]=='i')
 		{
@@ -111,10 +83,80 @@ void print_msg(lo_message msg, const char * path, int indent)
 			fprintf(stderr,"i %d\n",arg_values[i]->i);
 
 		}
-		else if(types[i]=='f')
+		else if(types[i]=='s')
 		{
 			print_indent(indent);
-			fprintf(stderr,"f %f\n",arg_values[i]->f);
+			fprintf(stderr,"s \"%s\"\n",&arg_values[i]->s);
+		}
+		else if(types[i]=='m')
+		{
+			print_indent(indent);
+			fprintf(stderr,"m ");
+			int w;
+			for(w=0;w<4;w++)
+			{
+				fprintf(stderr,"%d (0x%02x) ",(arg_values[i]->m)[w],(arg_values[i]->m)[w]);
+			}
+
+			fprintf(stderr,"\n");
+		}
+		else if(types[i]=='h')
+		{
+			print_indent(indent);
+			fprintf(stderr,"i %lu\n",arg_values[i]->h);
+		}
+		else if(types[i]=='t')
+		{
+			print_indent(indent);
+			lo_timetag tt=(lo_timetag)arg_values[i]->t;
+/*
+uint32_t lo_timetag::frac
+The fractions of a second offset from above, expressed as 1/2^32nds of a second
+
+uint32_t lo_timetag::sec
+The number of seconds since Jan 1st 1900 in the UTC timezone.
+*/
+			fprintf(stderr,"t %08x.%08x\n",tt.sec,tt.frac);
+		}
+		else if(types[i]=='d')
+		{
+			print_indent(indent);
+			fprintf(stderr,"i %f\n",arg_values[i]->d);
+		}
+		else if(types[i]=='S')
+		{
+			print_indent(indent);
+			fprintf(stderr,"i %d\n",arg_values[i]->S);
+		}
+		else if(types[i]=='c')
+		{
+			print_indent(indent);
+			fprintf(stderr,"i %c\n",arg_values[i]->c);
+		}
+		else if(types[i]=='T')
+		{
+			print_indent(indent);
+			fprintf(stderr,"i TRUE\n");
+		}
+		else if(types[i]=='F')
+		{
+			print_indent(indent);
+			fprintf(stderr,"i FALSE\n");
+		}
+		else if(types[i]=='N')
+		{
+			print_indent(indent);
+			fprintf(stderr,"i NIL\n");
+		}
+		else if(types[i]=='I')
+		{
+			print_indent(indent);
+			fprintf(stderr,"i INFINITUM\n");
+		}
+		else
+		{
+			print_indent(indent);
+			fprintf(stderr,"%c UNKNOWN TYPE\n",types[i]);
 		}
 	}
 
