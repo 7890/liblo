@@ -50,7 +50,8 @@ int main(int argc, char *argv[])
 		sub("bbbiif"
 			,b1 //containing previously created msg blob
 			,bfloat //containing (non-msg) float array blob
-			,sub("sb","inner" //another "inline" msg blob"
+			,sub("sb"
+				,"inner"
 				,sub("fff" //recurse...
 					,0.1
 					,0.2
@@ -66,6 +67,7 @@ int main(int argc, char *argv[])
 
 	const char * path="/test";
 
+	//prepare to write serialised message to stdout for later use
 	int msg_length=lo_message_length(msg,path);
 	void * msg_bytes=calloc(msg_length,sizeof(char));
 	size_t size_ret;
