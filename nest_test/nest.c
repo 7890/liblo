@@ -152,18 +152,18 @@ b 376 / bbbifb
    i 1
    f 2.300000
    b 208 / hTdScmtbb
-      i 81985529216486895
-      i TRUE
-      i 0.999900
-      i 115
-      i X
+      h 81985529216486895
+      T TRUE
+      d 0.999900
+      S 115
+      c X
       m 255 (0xff) 247 (0xf7) 170 (0xaa) 0 (0x00) 
       t 00000001.80000000
       b 84 / TFNIb
-         i TRUE
-         i FALSE
-         i NIL
-         i INFINITUM
+         T TRUE
+         F FALSE
+         N NIL
+         I INFINITUM
          b 68 / sif
             s "a string grouped with an int and a float"
             i 42
