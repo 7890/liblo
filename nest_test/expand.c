@@ -257,13 +257,13 @@ The number of seconds since Jan 1st 1900 in the UTC timezone.
 }
 
 //=============================================================================
-static uint32_t read_header(FILE *f,uint32_t fsize)
+static uint32_t read_header(FILE *f,uint32_t can_read)
 {
 //	const uint32_t header_size=16; //h
 ///
 	const uint32_t header_size=24; //hh
 
-	if(fsize>header_size)
+	if(can_read>header_size)
 	{
 		//try reading /. hh msg
 		char *bytes = malloc(header_size);
@@ -281,9 +281,10 @@ static uint32_t read_header(FILE *f,uint32_t fsize)
 					,arg_values[0]->h
 					,arg_values[1]->h);
 */
-
+				uint32_t ret=(uint32_t)arg_values[0]->h;
+				lo_message_free(msg);
 				free(bytes);
-				return (uint32_t)arg_values[0]->h;
+				return ret;
 			}
 		}
 		free(bytes);
@@ -374,11 +375,13 @@ static int print_from_file(const char *filename)
 int main(int argc, char *argv[])
 {
 	//single 'raw' osc message
-	print_from_file(argv[1]);
+//	print_from_file(argv[1]);
 
 	//multiple raw osc messages with size and prev pos header (/. hh)
 	//skipping messages (start at index), process n messages
-//	print_from_file_(argv[1],1,30000,100);
-
+//	while(1==1) //check for memory leaks
+	{
+		print_from_file_(argv[1],1,9000,1000);
+	}
 	return 0;
 }

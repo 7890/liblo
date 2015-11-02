@@ -11,14 +11,38 @@
 
 static lo_blob sub(const char *path, const char *types, ... );
 
-//static uint32_t create_demo_dump()
+static int *ptr_to_blobs[1000];
+static int ptr_index=0;
+
+//=============================================================================
+static void free_blobs()
+{
+	int i=0;
+	for(i=0;i<ptr_index+1;i++)
+	{
+		free(ptr_to_blobs[i]);
+	}
+	ptr_index=0;
+}
+
+//=============================================================================
+static lo_blob blob_new(int32_t size, const void *data)
+{
+	lo_blob b = lo_blob_new(size,data);
+	ptr_to_blobs[ptr_index]=b;
+	//fprintf(stderr,"ptr_index %d\n",ptr_index);
+	ptr_index++;
+	return b;
+}
+
+//=============================================================================
 static unsigned char* create_demo_dump(uint32_t *size)
 {
 	const float float_array[12] = {-123.456789,0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,100000};
-	lo_blob bfloat = lo_blob_new(sizeof(float_array), float_array);
+	lo_blob bfloat = blob_new(sizeof(float_array), float_array); //note != lo_blob_new
 
 	const int32_t int_array[12] = {-100000,0,1,2,3,4,5,6,7,8,9,100000};
-	lo_blob bint = lo_blob_new(sizeof(int_array), int_array);
+	lo_blob bint = blob_new(sizeof(int_array), int_array);
 
 	const uint8_t midi_data[4] = { 0xff, 0xf7, 0xAA, 0x00 };
 
@@ -84,10 +108,15 @@ static unsigned char* create_demo_dump(uint32_t *size)
 	lo_message_serialise (msg, path, msg_bytes, &size_ret);
 	fprintf(stderr,"serialized %lu bytes\n",size_ret);
 
+/*
+!!!!!!
+//use blob_new() and free_blobs()
 	lo_blob_free(bfloat);
 	lo_blob_free(bint);
 	lo_blob_free(b1);
 	lo_blob_free(b2);
+*/
+
 	lo_message_free(msg);
 //	free(msg_bytes);
 
@@ -123,6 +152,7 @@ static uint32_t dump_header(const uint32_t len, const uint32_t prev_pos)
 	fprintf(stderr,"serialized %lu bytes\n",size_ret);
 
 	dump_memory(msg_bytes,size_ret);
+	lo_message_free(msg);
 	free(msg_bytes);
 
 	return size_ret;
@@ -159,13 +189,15 @@ static void test_multi()
 
 	//create pseudo linked list for experimental parsers
 	int i=0;
-	for(i=0;i<100000;i++)
-//	while(1==1)
+	for(i=0;i<10000;i++)
+//	while(1==1) //check for memory leaks
 	{
 		//write header (/. h) followed by raw osc message
 		prev_pos=pos-size;
 		size=test(1,prev_pos);
 		pos+=size;
+		//clean up all blobs created by test()
+		free_blobs();
 	}
 
 /*
@@ -186,12 +218,12 @@ hexdump -s 1812 -n 24 -c osc.dump
 int main(int argc, char *argv[])
 {
 	//write raw osc message bytes to stdout
-	test(0,0);
+//	test(0,0);
 
 	//write raw osc message bytes to stdout with heder
-	//test(1,0);
+//	test(1,0);
 
-	//test_multi();
+	test_multi();
 
 	return 0;
 }
@@ -212,7 +244,7 @@ static lo_blob sub(const char *path, const char *types, ... )
 	//va_end (ap);
 	//some problem here:liblo error: lo_send, lo_message_add, or lo_message_add_varargs called with mismatching types and data at:0, exiting.
 
-	lo_blob b=lo_blob_new(lo_message_length(msg,path),0);
+	lo_blob b=blob_new(lo_message_length(msg,path),0);
 	size_t size_ret;
 	lo_message_serialise (msg, path, lo_blob_dataptr(b), &size_ret);
 	lo_message_free(msg);
@@ -220,7 +252,7 @@ static lo_blob sub(const char *path, const char *types, ... )
 	fprintf(stderr,"serialized %lu bytes\n",size_ret);
 	fprintf(stderr,"blob size %d bytes\n",lo_blobsize(b));
 
-	//blob to be freed by caller
+	//blob to be freed by caller (via free_blobs())
 	return b;
 }
 
