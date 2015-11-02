@@ -40,6 +40,9 @@ static void print_msg(lo_message msg, const char * path, int indent);
 static int bflat_pos=0;
 static int vflat_pos=0;
 
+const static int HEADERLESS=0;
+const static int WITH_HEADER=1;
+
 //=============================================================================
 static void print_blob(const lo_blob b, int indent)
 {
@@ -368,7 +371,7 @@ goto __next;
 //=============================================================================
 static int print_from_file(const char *filename)
 {
-	return print_from_file_(filename,0,0,1);
+	return print_from_file_(filename,HEADERLESS,0,1);
 }
 
 //=============================================================================
@@ -381,7 +384,7 @@ int main(int argc, char *argv[])
 	//skipping messages (start at index), process n messages
 //	while(1==1) //check for memory leaks
 	{
-		print_from_file_(argv[1],1,9000,1000);
+		print_from_file_(argv[1],WITH_HEADER,99998,2);
 	}
 	return 0;
 }

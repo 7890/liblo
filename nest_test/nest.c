@@ -11,8 +11,10 @@
 
 static lo_blob sub(const char *path, const char *types, ... );
 
-static int *ptr_to_blobs[1000];
-static int ptr_index=0;
+static uint32_t *ptr_to_blobs[1000];
+static uint32_t ptr_index=0;
+
+static uint32_t msg_counter=0;
 
 //=============================================================================
 static void free_blobs()
@@ -96,9 +98,19 @@ static unsigned char* create_demo_dump(uint32_t *size)
 	);
 
 	lo_message msg=lo_message_new();
-	lo_message_add(msg,"ifsb",128,0.2,"foo",b2);
+	char * path;
 
-	const char * path="/test";
+	//some pseudo variance
+	if(msg_counter!=0 && msg_counter % 3 == 0)
+	{
+		path="/another";
+		lo_message_add(msg,"hfsb",msg_counter,0.3,"baz",b1);
+	}
+	else
+	{
+		path="/test";
+		lo_message_add(msg,"hfsb",msg_counter,0.2,"foo",b2);
+	}
 
 	//prepare to write serialised message to stdout for later use
 //	const 
@@ -106,6 +118,7 @@ static unsigned char* create_demo_dump(uint32_t *size)
 	void * msg_bytes=calloc(msg_length,sizeof(char));
 	size_t size_ret;
 	lo_message_serialise (msg, path, msg_bytes, &size_ret);
+	msg_counter++;
 	fprintf(stderr,"serialized %lu bytes\n",size_ret);
 
 /*
@@ -189,7 +202,7 @@ static void test_multi()
 
 	//create pseudo linked list for experimental parsers
 	int i=0;
-	for(i=0;i<10000;i++)
+	for(i=0;i<100000;i++)
 //	while(1==1) //check for memory leaks
 	{
 		//write header (/. h) followed by raw osc message
