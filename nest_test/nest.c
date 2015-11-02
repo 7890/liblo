@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <inttypes.h>
 
 #include "lo/lo.h"
 
@@ -8,26 +9,27 @@
 
 //gcc -o nest nest.c -llo && ./nest > /tmp/a && hexdump -c /tmp/a
 
-lo_blob sub(const char *path, const char *types, ... );
+static lo_blob sub(const char *path, const char *types, ... );
 
-void createDemoDump()
+//static uint32_t create_demo_dump()
+static unsigned char* create_demo_dump(uint32_t *size)
 {
 	const float float_array[12] = {-123.456789,0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,100000};
 	lo_blob bfloat = lo_blob_new(sizeof(float_array), float_array);
 
-	const float int_array[12] = {-100000,0,1,2,3,4,5,6,7,8,9,100000};
+	const int32_t int_array[12] = {-100000,0,1,2,3,4,5,6,7,8,9,100000};
 	lo_blob bint = lo_blob_new(sizeof(int_array), int_array);
 
-	uint8_t midi_data[4] = { 0xff, 0xf7, 0xAA, 0x00 };
+	const uint8_t midi_data[4] = { 0xff, 0xf7, 0xAA, 0x00 };
 
 	//lo_timetag timetag;
 	//lo_timetag_now(&timetag);
 
-	lo_timetag timetag = { 0x1, 0x80000000 };
+	const lo_timetag timetag = { 0x1, 0x80000000 };
 	//lo_timetag timetag = { 0x1, 0x00000000 };
 
-	lo_blob b1=sub("/b1","sif","a string grouped with an int and a float",42,0.123);
-	lo_blob b2=
+	const lo_blob b1=sub("/b1","sif","a string grouped with an int and a float",42,0.123);
+	const lo_blob b2=
 	sub("/b2","bbbifb"
 		,b1 //containing previously created msg blob
 		,bfloat //containing (non-msg) float array blob
@@ -75,40 +77,93 @@ void createDemoDump()
 	const char * path="/test";
 
 	//prepare to write serialised message to stdout for later use
-	int msg_length=lo_message_length(msg,path);
+//	const 
+	uint32_t msg_length=lo_message_length(msg,path);
 	void * msg_bytes=calloc(msg_length,sizeof(char));
 	size_t size_ret;
 	lo_message_serialise (msg, path, msg_bytes, &size_ret);
 	fprintf(stderr,"serialized %lu bytes\n",size_ret);
-
-	unsigned char *q = msg_bytes;
-	int k;
-	for (k = 0; k < msg_length; k++)
-	{
-		printf("%c",q[k]);
-	}
-	fflush(stdout);
-	fprintf(stderr,"\n");
 
 	lo_blob_free(bfloat);
 	lo_blob_free(bint);
 	lo_blob_free(b1);
 	lo_blob_free(b2);
 	lo_message_free(msg);
+//	free(msg_bytes);
+
+	(*size)=msg_length;;
+
+	//caller must clean up
+	return msg_bytes;
+}
+
+//=============================================================================
+static void dump_memory(unsigned char *q, const uint32_t len)
+{
+	int k;
+	for (k = 0; k <len; k++)
+	{
+		printf("%c",q[k]);
+	}
+	fflush(stdout);
+	fprintf(stderr,"\n");
+}
+
+//=============================================================================
+static void dump_header(uint32_t len)
+{
+	lo_message msg=lo_message_new();
+	lo_message_add(msg,"h",len);
+	const char * path="/.";
+
+	uint32_t msg_length=lo_message_length(msg,path);
+	void * msg_bytes=calloc(msg_length,sizeof(char));
+	size_t size_ret;
+	lo_message_serialise (msg, path, msg_bytes, &size_ret);
+	fprintf(stderr,"serialized %lu bytes\n",size_ret);
+
+	dump_memory(msg_bytes,size_ret);
 	free(msg_bytes);
 }
 
+//=============================================================================
+static void test(int with_header)
+{
+	unsigned char *q=NULL;
+	uint32_t size;
+	q=create_demo_dump(&size);
+	fprintf(stderr,"==dumping %"PRId32" bytes\n",size);
+
+	if(with_header==1)
+	{
+		dump_header(size);
+	}
+
+	dump_memory(q,size);
+	free(q);
+}
 
 //=============================================================================
 int main(int argc, char *argv[])
 {
-	createDemoDump();
+	//write raw osc message bytes to stdout
+	test(0);;
+/*
+	int i=0;
+	for(i=0;i<100000;i++)
+//	while(1==1)
+	{
+		//write header (/. h) followed by raw osc message
+		test(1);
+	}
+*/
+
 	return 0;
 }
 
 //trying to wrap lo_message_add
 //=============================================================================
-lo_blob sub(const char *path, const char *types, ... )
+static lo_blob sub(const char *path, const char *types, ... )
 {
 	lo_message msg=lo_message_new();
 	//const char* path="/";
@@ -148,7 +203,7 @@ QBMzMwAAAVgvAAAALGhUZFNjbXRiYgAAASNFZ4mrze8/7/8uSOinHnN5bQAAAABY//eqAAAAAAGA
 AAAAAAAA3C9oaQAsVEZOSWJiYgAAAAAAAABAL2IxACxzaWYAAAAAYSBzdHJpbmcgZ3JvdXBlZCB3
 aXRoIGFuIGludCBhbmQgYSBmbG9hdAAAAAAAAAAqPfvnbQAAAEAvdGIALGNiAAAAAGYAAAAw4On2
 wgAAAADNzMw9zcxMPpqZmT7NzMw+AAAAP5qZGT8zMzM/zcxMP2ZmZj8AUMNHAAAAQC90YgAsY2IA
-AAAAaQAAADAAUMPHAAAAAAAAgD8AAABAAABAQAAAgEAAAKBAAADAQAAA4EAAAABBAAAQQQBQw0cA
+AAAAaQAAADBgef7/AAAAAAEAAAACAAAAAwAAAAQAAAAFAAAABgAAAAcAAAAIAAAACQAAAKCGAQAA
 AABAL2IxACxzaWYAAAAAYSBzdHJpbmcgZ3JvdXBlZCB3aXRoIGFuIGludCBhbmQgYSBmbG9hdAAA
 AAAAAAAqPfvnbQ==
 

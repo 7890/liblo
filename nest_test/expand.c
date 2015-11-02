@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <inttypes.h>
 
 #include "lo/lo.h"
 
@@ -40,7 +41,7 @@ static int bflat_pos=0;
 static int vflat_pos=0;
 
 //=============================================================================
-void print_blob(const lo_blob b, int indent)
+static void print_blob(const lo_blob b, int indent)
 {
 /*
 	unsigned char *q = lo_blob_dataptr(b);
@@ -85,7 +86,7 @@ void print_indent(const int indent)
 }
 
 //=============================================================================
-void print_msg(const lo_message msg, const char * path, int indent)
+static void print_msg(const lo_message msg, const char * path, int indent)
 {
 	const int arg_count=lo_message_get_argc(msg);
 	const char *types=lo_message_get_types(msg);
@@ -103,7 +104,6 @@ void print_msg(const lo_message msg, const char * path, int indent)
 		if(arg_values[0]->c=='f')
 		{
 			const float *q=lo_blob_dataptr(b);
-
 			const int num=dsize/sizeof(float);
 
 			print_indent(indent);
@@ -128,9 +128,7 @@ void print_msg(const lo_message msg, const char * path, int indent)
 		}
 		else if(arg_values[0]->c=='i')
 		{
-			///
-			const float *q=lo_blob_dataptr(b);
-
+			const int32_t *q=lo_blob_dataptr(b);
 			const int num=dsize/sizeof(int32_t);
 
 			print_indent(indent);
@@ -138,7 +136,7 @@ void print_msg(const lo_message msg, const char * path, int indent)
 			int k;
 			for (k = 0; k < num; k++)
 			{
-				fprintf(stderr,"%d",(int32_t)q[k]);
+				fprintf(stderr,"%d",q[k]);
 				if(k<num-1)
 				{
 					fprintf(stderr," ");
@@ -259,25 +257,121 @@ The number of seconds since Jan 1st 1900 in the UTC timezone.
 }
 
 //=============================================================================
-int main(int argc, char *argv[])
+static uint32_t read_header(FILE *f,uint32_t fsize)
+{
+	const uint32_t header_size=16;
+	if(fsize>header_size)
+	{
+		//try reading /. h msg
+		char *bytes = malloc(header_size);
+		fread(bytes, header_size, 1, f);
+		const char *path = lo_get_path(bytes, header_size);
+		if(!strcmp(path,"/."))
+		{
+			lo_message msg=lo_message_deserialise(bytes,header_size,NULL);
+			const char *types=lo_message_get_types(msg);
+			if(!strcmp(types,"h"))
+			{
+				lo_arg ** arg_values=lo_message_get_argv(msg);
+//				fprintf(stderr,"==header tells next msg is %"PRId64" bytes long\n"
+//					,arg_values[0]->h);
+				free(bytes);
+				return (uint32_t)arg_values[0]->h;
+			}
+		}
+		free(bytes);
+	}
+	return 0;
+}
+
+//=============================================================================
+static int print_from_file_(const char *filename, const uint32_t with_header, const uint32_t skip, const uint32_t requested)
 {
 	//http://stackoverflow.com/questions/14002954/c-programming-how-to-read-the-whole-file-contents-into-a-buffer
-	FILE *f = fopen(argv[1], "rb");
+	FILE *f=NULL;
+	f=fopen(filename, "rb");
+	if(f==NULL)
+	{
+		fprintf(stderr,"could not open file\n");
+		return 1;
+	}
+
 	fseek(f, 0, SEEK_END);
-	const uint32_t fsize = ftell(f);
+	uint32_t can_read = ftell(f);
 	fseek(f, 0, SEEK_SET);
-	char *bytes = malloc(fsize);
-	fread(bytes, fsize, 1, f);
-	fclose(f);
 
-	const char *path = lo_get_path(bytes, fsize);
-	lo_message msg=lo_message_deserialise(bytes,fsize,NULL);
+	uint32_t next_msg_size=0;
+	uint32_t cur_pos=0;
 
-	//======
+	uint32_t skip_=skip;
+	uint32_t to_go_=requested;
+
+__next:
+	if(to_go_<1)
+	{
+		fprintf(stderr,"==end of reqeusted\n");
+		fclose(f);
+		return 0;
+	}
+
+	cur_pos=ftell(f);
+	fseek(f, 0, SEEK_END);
+	can_read = ftell(f)-cur_pos;
+	fseek(f, cur_pos, SEEK_SET);
+
+	if(with_header==0)
+	{
+		next_msg_size=can_read;
+	}
+	else
+	{
+		next_msg_size=read_header(f,can_read);
+		if(next_msg_size<=0)
+		{
+			fprintf(stderr,"==invalid header or no more data\n");
+			fclose(f);
+			return 1;
+		}
+	}
+
+	if(skip_>0 && with_header==1)
+	{
+		fseek(f, next_msg_size, SEEK_CUR);
+		skip_--;
+goto __next;
+	}
+
+	char *bytes = malloc(next_msg_size);
+	fread(bytes, next_msg_size, 1, f);
+
+	const char *path = lo_get_path(bytes, next_msg_size);
+	lo_message msg=lo_message_deserialise(bytes,next_msg_size,NULL);
 	print_msg(msg,path,0);
-	//print_msg(msg,path,0);
-
 	lo_message_free(msg);
+	free(bytes);
+
+	if(with_header==1)
+	{
+		to_go_--;
+		goto __next;
+	}
+}
+
+//=============================================================================
+static int print_from_file(const char *filename)
+{
+	return print_from_file_(filename,0,0,1);
+}
+
+//=============================================================================
+int main(int argc, char *argv[])
+{
+	//single 'raw' osc message
+	print_from_file(argv[1]);//,0,0,1);
+
+	//multiple raw osc messages with size header (/. h)
+	//skipping 9997 messages (start at msg #9998 @ index 9997), process 3 messages
+//	print_from_file_(argv[1],1,9997,3);
 
 	return 0;
 }
