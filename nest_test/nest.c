@@ -10,8 +10,7 @@
 
 lo_blob sub(const char *path, const char *types, ... );
 
-//=============================================================================
-int main(int argc, char *argv[])
+void createDemoDump()
 {
 	const float float_array[12] = {-123.456789,0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,100000};
 	lo_blob bfloat = lo_blob_new(sizeof(float_array), float_array);
@@ -92,10 +91,18 @@ int main(int argc, char *argv[])
 	fprintf(stderr,"\n");
 
 	lo_blob_free(bfloat);
+	lo_blob_free(bint);
 	lo_blob_free(b1);
 	lo_blob_free(b2);
 	lo_message_free(msg);
+	free(msg_bytes);
+}
 
+
+//=============================================================================
+int main(int argc, char *argv[])
+{
+	createDemoDump();
 	return 0;
 }
 
@@ -115,15 +122,12 @@ lo_blob sub(const char *path, const char *types, ... )
 	//va_end (ap);
 	//some problem here:liblo error: lo_send, lo_message_add, or lo_message_add_varargs called with mismatching types and data at:0, exiting.
 
-	void * msgbytes=calloc(lo_message_length(msg,path),sizeof(char));
+	lo_blob b=lo_blob_new(lo_message_length(msg,path),0);
 	size_t size_ret;
-	lo_message_serialise (msg, path, msgbytes, &size_ret);
-
+	lo_message_serialise (msg, path, lo_blob_dataptr(b), &size_ret);
 	lo_message_free(msg);
-	//free(msgbytes); ////!?
 
 	fprintf(stderr,"serialized %lu bytes\n",size_ret);
-	lo_blob b=lo_blob_new(size_ret,msgbytes);
 	fprintf(stderr,"blob size %d bytes\n",lo_blobsize(b));
 
 	//blob to be freed by caller
