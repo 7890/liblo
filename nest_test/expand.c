@@ -320,7 +320,7 @@ static int print_from_file_(const char *filename, const uint32_t with_header, co
 __next:
 	if(to_go_<1)
 	{
-		fprintf(stderr,"==end of reqeusted\n");
+		fprintf(stderr,"==end of requested\n");
 		fclose(f);
 		return 0;
 	}
