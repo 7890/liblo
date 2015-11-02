@@ -110,10 +110,10 @@ static void dump_memory(unsigned char *q, const uint32_t len)
 }
 
 //=============================================================================
-static void dump_header(uint32_t len)
+static uint32_t dump_header(const uint32_t len, const uint32_t prev_pos)
 {
 	lo_message msg=lo_message_new();
-	lo_message_add(msg,"h",len);
+	lo_message_add(msg,"hh",len,prev_pos);
 	const char * path="/.";
 
 	uint32_t msg_length=lo_message_length(msg,path);
@@ -124,39 +124,74 @@ static void dump_header(uint32_t len)
 
 	dump_memory(msg_bytes,size_ret);
 	free(msg_bytes);
+
+	return size_ret;
 }
 
 //=============================================================================
-static void test(int with_header)
+static uint32_t test(const int with_header, const uint32_t prev_pos)
 {
 	unsigned char *q=NULL;
 	uint32_t size;
+	uint32_t total_size;
 	q=create_demo_dump(&size);
 	fprintf(stderr,"==dumping %"PRId32" bytes\n",size);
 
+	total_size=size;
+
 	if(with_header==1)
 	{
-		dump_header(size);
+		total_size+=dump_header(size,prev_pos);
 	}
 
 	dump_memory(q,size);
 	free(q);
+
+	return total_size;
+}
+
+//=============================================================================
+static void test_multi()
+{
+	uint32_t size=0;
+	uint32_t pos=0;
+	uint32_t prev_pos=0;
+
+	//create pseudo linked list for experimental parsers
+	int i=0;
+	for(i=0;i<100000;i++)
+//	while(1==1)
+	{
+		//write header (/. h) followed by raw osc message
+		prev_pos=pos-size;
+		size=test(1,prev_pos);
+		pos+=size;
+	}
+
+/*
+a) ==header tells next msg is 580 bytes long, prev started at pos 0 //special case (parser can ignore if at pos 0)
+b) ==header tells next msg is 580 bytes long, prev started at pos 0 //first usable reference (to first record at start of file)
+c) ==header tells next msg is 580 bytes long, prev started at pos 604 //start of prev header
+d) ==header tells next msg is 580 bytes long, prev started at pos 1812 //start of prev header
+...
+
+hexdump -s 1812 -n 24 -c osc.dump 
+0000714   /   .  \0  \0   ,   h   h  \0  \0  \0  \0  \0  \0  \0 002   D
+0000724  \0  \0  \0  \0  \0  \0  \a 024                                
+
+*/
 }
 
 //=============================================================================
 int main(int argc, char *argv[])
 {
 	//write raw osc message bytes to stdout
-	test(0);;
-/*
-	int i=0;
-	for(i=0;i<100000;i++)
-//	while(1==1)
-	{
-		//write header (/. h) followed by raw osc message
-		test(1);
-	}
-*/
+	test(0,0);
+
+	//write raw osc message bytes to stdout with heder
+	//test(1,0);
+
+	//test_multi();
 
 	return 0;
 }
@@ -192,7 +227,6 @@ static lo_blob sub(const char *path, const char *types, ... )
 /*
 expected output for this example:
 
-raw, 392 bytes
 (here base64 encoded)
 
 L3Rlc3QAAAAsaWZzYgAAAAAAAIA+TMzNZm9vAAAAAiQvYjIALGJiYmlmYgAAAABAL2IxACxzaWYA
@@ -206,8 +240,6 @@ wgAAAADNzMw9zcxMPpqZmT7NzMw+AAAAP5qZGT8zMzM/zcxMP2ZmZj8AUMNHAAAAQC90YgAsY2IA
 AAAAaQAAADBgef7/AAAAAAEAAAACAAAAAwAAAAQAAAAFAAAABgAAAAcAAAAIAAAACQAAAKCGAQAA
 AABAL2IxACxzaWYAAAAAYSBzdHJpbmcgZ3JvdXBlZCB3aXRoIGFuIGludCBhbmQgYSBmbG9hdAAA
 AAAAAAAqPfvnbQ==
-
-expanded (see expand.c)
 
 /test ifsb (580 bytes)
 i 128
@@ -252,5 +284,7 @@ b(M) /b2 bbbifb (548 bytes)
          s "a string grouped with an int and a float"
          i 42
          f 0.123000
+
+expanded (see expand.c)
 
 */

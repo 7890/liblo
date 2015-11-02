@@ -259,10 +259,13 @@ The number of seconds since Jan 1st 1900 in the UTC timezone.
 //=============================================================================
 static uint32_t read_header(FILE *f,uint32_t fsize)
 {
-	const uint32_t header_size=16;
+//	const uint32_t header_size=16; //h
+///
+	const uint32_t header_size=24; //hh
+
 	if(fsize>header_size)
 	{
-		//try reading /. h msg
+		//try reading /. hh msg
 		char *bytes = malloc(header_size);
 		fread(bytes, header_size, 1, f);
 		const char *path = lo_get_path(bytes, header_size);
@@ -270,11 +273,15 @@ static uint32_t read_header(FILE *f,uint32_t fsize)
 		{
 			lo_message msg=lo_message_deserialise(bytes,header_size,NULL);
 			const char *types=lo_message_get_types(msg);
-			if(!strcmp(types,"h"))
+			if(!strcmp(types,"hh"))
 			{
 				lo_arg ** arg_values=lo_message_get_argv(msg);
-//				fprintf(stderr,"==header tells next msg is %"PRId64" bytes long\n"
-//					,arg_values[0]->h);
+/*
+				fprintf(stderr,"==header tells next msg is %"PRId64" bytes long, prev started at pos %"PRId64"\n"
+					,arg_values[0]->h
+					,arg_values[1]->h);
+*/
+
 				free(bytes);
 				return (uint32_t)arg_values[0]->h;
 			}
@@ -367,11 +374,11 @@ static int print_from_file(const char *filename)
 int main(int argc, char *argv[])
 {
 	//single 'raw' osc message
-	print_from_file(argv[1]);//,0,0,1);
+	print_from_file(argv[1]);
 
-	//multiple raw osc messages with size header (/. h)
-	//skipping 9997 messages (start at msg #9998 @ index 9997), process 3 messages
-//	print_from_file_(argv[1],1,9997,3);
+	//multiple raw osc messages with size and prev pos header (/. hh)
+	//skipping messages (start at index), process n messages
+//	print_from_file_(argv[1],1,30000,100);
 
 	return 0;
 }
