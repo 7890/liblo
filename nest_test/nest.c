@@ -9,11 +9,10 @@
 
 //gcc -o nest nest.c -llo && ./nest > /tmp/a && hexdump -c /tmp/a
 
-static lo_blob sub_internal(const char *path, const char *types, ... );
+static lo_blob b_internal(const char *path, const char *types, ... );
 
-#define sub(path,types...) \
-	sub_internal(path,types,LO_ARGS_END)
-
+#define b(path,types...) \
+	b_internal(path,types,LO_ARGS_END)
 
 static uint32_t *ptr_to_blobs[1000];
 static uint32_t ptr_index=0;
@@ -58,14 +57,14 @@ static unsigned char* create_demo_dump(uint32_t *size)
 	const lo_timetag timetag = { 0x1, 0x80000000 };
 	//lo_timetag timetag = { 0x1, 0x00000000 };
 
-	const lo_blob b1=sub("/b1","sif","a string grouped with an int and a float",42,0.123);
+	const lo_blob b1=b("/b1","sif","a string grouped with an int and a float",42,0.123);
 	const lo_blob b2=
-	sub("/b2","bbbifb"
+	b("/b2","bbbifb"
 		,b1 //containing previously created msg blob
 		,bfloat //containing (non-msg) float array blob
-		,sub("/x","sb"
+		,b("/x","sb"
 			,"named float list"
-			,sub("/","fff" //
+			,b("/","fff" //
 				,0.1
 				,0.2
 				,0.3
@@ -73,7 +72,7 @@ static unsigned char* create_demo_dump(uint32_t *size)
 		)
 		,1
 		,2.3
-		,sub("/","hTdScmtbb" //param without arg in-between
+		,b("/","hTdScmtbb" //param without arg in-between
 			,0x0123456789abcdefULL //int64
 			//(true)
 			,0.9999 //double
@@ -81,17 +80,17 @@ static unsigned char* create_demo_dump(uint32_t *size)
 			,'X' //char
 			,midi_data
 			,timetag
-			,sub("/hi","TFNIbbb"
+			,b("/hi","TFNIbbb"
 				//(true)
 				//(false)
 				//(nil)
 				//(infinitum)
 				,b1
-				,sub("/tb","cb" //typed blob
+				,b("/tb","cb" //typed blob
 					,'f'
 					,bfloat
 				)
-				,sub("/tb","cb" //typed blob
+				,b("/tb","cb" //typed blob
 					,'i'
 					,bint
 				)
@@ -246,7 +245,7 @@ int main(int argc, char *argv[])
 
 //trying to wrap lo_message_add
 //=============================================================================
-static lo_blob sub_internal(const char *path, const char *types, ... )
+static lo_blob b_internal(const char *path, const char *types, ... )
 {
 	lo_message msg=lo_message_new();
 	//const char* path="/";
