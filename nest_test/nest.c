@@ -9,7 +9,11 @@
 
 //gcc -o nest nest.c -llo && ./nest > /tmp/a && hexdump -c /tmp/a
 
-static lo_blob sub(const char *path, const char *types, ... );
+static lo_blob sub_internal(const char *path, const char *types, ... );
+
+#define sub(path,types...) \
+	sub_internal(path,types,LO_ARGS_END)
+
 
 static uint32_t *ptr_to_blobs[1000];
 static uint32_t ptr_index=0;
@@ -91,7 +95,6 @@ static unsigned char* create_demo_dump(uint32_t *size)
 					,'i'
 					,bint
 				)
-
 			)
 			,b1
 		)
@@ -119,7 +122,7 @@ static unsigned char* create_demo_dump(uint32_t *size)
 	size_t size_ret;
 	lo_message_serialise (msg, path, msg_bytes, &size_ret);
 	msg_counter++;
-	fprintf(stderr,"serialized %lu bytes\n",size_ret);
+//	fprintf(stderr,"serialized %lu bytes\n",size_ret);
 
 /*
 !!!!!!
@@ -162,7 +165,7 @@ static uint32_t dump_header(const uint32_t len, const uint32_t prev_pos)
 	void * msg_bytes=calloc(msg_length,sizeof(char));
 	size_t size_ret;
 	lo_message_serialise (msg, path, msg_bytes, &size_ret);
-	fprintf(stderr,"serialized %lu bytes\n",size_ret);
+//	fprintf(stderr,"serialized %lu bytes\n",size_ret);
 
 	dump_memory(msg_bytes,size_ret);
 	lo_message_free(msg);
@@ -178,7 +181,7 @@ static uint32_t test(const int with_header, const uint32_t prev_pos)
 	uint32_t size;
 	uint32_t total_size;
 	q=create_demo_dump(&size);
-	fprintf(stderr,"==dumping %"PRId32" bytes\n",size);
+//	fprintf(stderr,"==dumping %"PRId32" bytes\n",size);
 
 	total_size=size;
 
@@ -243,7 +246,7 @@ int main(int argc, char *argv[])
 
 //trying to wrap lo_message_add
 //=============================================================================
-static lo_blob sub(const char *path, const char *types, ... )
+static lo_blob sub_internal(const char *path, const char *types, ... )
 {
 	lo_message msg=lo_message_new();
 	//const char* path="/";
@@ -262,7 +265,7 @@ static lo_blob sub(const char *path, const char *types, ... )
 	lo_message_serialise (msg, path, lo_blob_dataptr(b), &size_ret);
 	lo_message_free(msg);
 
-	fprintf(stderr,"serialized %lu bytes\n",size_ret);
+//	fprintf(stderr,"serialized %lu bytes\n",size_ret);
 	fprintf(stderr,"blob size %d bytes\n",lo_blobsize(b));
 
 	//blob to be freed by caller (via free_blobs())
