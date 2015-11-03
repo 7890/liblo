@@ -349,7 +349,7 @@ __next:
 	{
 		fseek(f, next_msg_size, SEEK_CUR);
 		skip_--;
-goto __next;
+		goto __next;
 	}
 
 	char *bytes = malloc(next_msg_size);
@@ -378,13 +378,13 @@ static int print_from_file(const char *filename)
 int main(int argc, char *argv[])
 {
 	//single 'raw' osc message
-//	print_from_file(argv[1]);
+	print_from_file(argv[1]);
 
 	//multiple raw osc messages with size and prev pos header (/. hh)
 	//skipping messages (start at index), process n messages
 //	while(1==1) //check for memory leaks
-	{
-		print_from_file_(argv[1],WITH_HEADER,99998,2);
-	}
+//	{
+//		print_from_file_(argv[1],WITH_HEADER,99998,2);
+//	}
 	return 0;
 }
