@@ -105,7 +105,7 @@ static void print_msg(const lo_message msg, const char * path, int indent)
 	const char *types=lo_message_get_types(msg);
 	lo_arg ** arg_values=lo_message_get_argv(msg);
 
-	fprintf(stderr,"%s %s (%lu bytes)\n",path,types,lo_message_length(msg,path));
+	fprintf(stderr,"%s %s (%d bytes)\n",path,types,lo_message_length(msg,path));
 
 	if(!strcmp(path,"/tb") && !strcmp(types,"cb"))
 	{
@@ -203,7 +203,7 @@ static void print_msg(const lo_message msg, const char * path, int indent)
 		else if(types[i]=='h')
 		{
 			//fprintf(stderr,"%d %d) ",vflat_pos,i);
-			fprintf(stderr,"h %lu\n",arg_values[i]->h);
+			fprintf(stderr,"h %"PRId64"\n",arg_values[i]->h);
 		}
 		else if(types[i]=='t')
 		{
