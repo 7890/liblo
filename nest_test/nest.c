@@ -1,43 +1,82 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <inttypes.h>
-
-#include "lo/lo.h"
+#include "nest.h"
 
 //tb/151101
 
-//gcc -o nest nest.c -llo && ./nest > /tmp/a && hexdump -c /tmp/a
+//gcc -o nest nest.c -llo
 
-static lo_blob b_internal(const char *path, const char *types, ... );
-
-#define b(path,types...) \
-	b_internal(path,types,LO_ARGS_END)
-
-static uint32_t *ptr_to_blobs[1000];
-static uint32_t ptr_index=0;
-
-static uint32_t msg_counter=0;
+static uint32_t test(const int with_header, const uint64_t prev_pos);
+static void test_multi(uint64_t count);
+static unsigned char* create_demo_dump(uint32_t *size);
 
 //=============================================================================
-static void free_blobs()
+int main(int argc, char *argv[])
 {
-	int i=0;
-	for(i=0;i<ptr_index+1;i++)
-	{
-		free(ptr_to_blobs[i]);
-	}
-	ptr_index=0;
+	//write raw osc message bytes to stdout
+//	test(0,0);
+
+	//write raw osc message bytes to stdout with heder
+//	test(1,0);
+
+	//write n messages with header
+	//time ./nest > 100k.dump 2>/dev/null
+	test_multi(100000);
+	return 0;
 }
 
 //=============================================================================
-static lo_blob blob_new(int32_t size, const void *data)
+static uint32_t test(const int with_header, const uint64_t prev_pos)
 {
-	lo_blob b = lo_blob_new(size,data);
-	ptr_to_blobs[ptr_index]=b;
-	//fprintf(stderr,"ptr_index %d\n",ptr_index);
-	ptr_index++;
-	return b;
+	unsigned char *q=NULL;
+	uint32_t size;
+	uint32_t total_size;
+
+	q=create_demo_dump(&size);
+//	fprintf(stderr,"==dumping %"PRId32" bytes\n",size);
+
+	total_size=size;
+	if(with_header==1)
+	{
+		total_size+=dump_header(size,prev_pos);
+	}
+
+	dump_memory(q,size);
+	free(q);
+	free_blobs();
+
+	return total_size;
+}
+
+//=============================================================================
+static void test_multi(uint64_t count)
+{
+	uint32_t size=0;
+	uint64_t pos=0;
+	uint64_t prev_pos=0;
+
+	//create pseudo linked list for experimental parsers
+	uint64_t i=0;
+	for(i=0;i<count;i++)
+//	while(1==1) //check for memory leaks
+	{
+		//write header (/. h) followed by raw osc message
+		prev_pos=pos-size;
+		size=test(1,prev_pos);
+		pos+=size;
+		//clean up all blobs created by test()
+	}
+
+/*
+a) ==header tells next msg is 580 bytes long, prev started at pos 0 //special case (parser can ignore if at pos 0)
+b) ==header tells next msg is 580 bytes long, prev started at pos 0 //first usable reference (to first record at start of file)
+c) ==header tells next msg is 580 bytes long, prev started at pos 604 //start of prev header
+d) ==header tells next msg is 580 bytes long, prev started at pos 1812 //start of prev header
+...
+
+hexdump -s 1812 -n 24 -c osc.dump 
+0000714   /   .  \0  \0   ,   h   h  \0  \0  \0  \0  \0  \0  \0 002   D
+0000724  \0  \0  \0  \0  \0  \0  \a 024                                
+
+*/
 }
 
 //=============================================================================
@@ -51,11 +90,10 @@ static unsigned char* create_demo_dump(uint32_t *size)
 
 	const uint8_t midi_data[4] = { 0xff, 0xf7, 0xAA, 0x00 };
 
-	//lo_timetag timetag;
-	//lo_timetag_now(&timetag);
+	lo_timetag timetag;
+	lo_timetag_now(&timetag);
 
-	const lo_timetag timetag = { 0x1, 0x80000000 };
-	//lo_timetag timetag = { 0x1, 0x00000000 };
+	//const lo_timetag timetag = { 0x1, 0x80000000 };
 
 	const lo_blob b1=b("/b1","sif","a string grouped with an int and a float",42,0.123);
 	const lo_blob b2=
@@ -64,7 +102,7 @@ static unsigned char* create_demo_dump(uint32_t *size)
 		,bfloat //containing (non-msg) float array blob
 		,b("/x","sb"
 			,"named float list"
-			,b("/","fff" //
+			,b("/","fff" 
 				,0.1
 				,0.2
 				,0.3
@@ -115,163 +153,23 @@ static unsigned char* create_demo_dump(uint32_t *size)
 	}
 
 	//prepare to write serialised message to stdout for later use
-//	const 
-	uint32_t msg_length=lo_message_length(msg,path);
+	const uint32_t msg_length=lo_message_length(msg,path);
 	void * msg_bytes=calloc(msg_length,sizeof(char));
 	size_t size_ret;
 	lo_message_serialise (msg, path, msg_bytes, &size_ret);
 	msg_counter++;
 //	fprintf(stderr,"serialized %lu bytes\n",size_ret);
 
-/*
-!!!!!!
-//use blob_new() and free_blobs()
-	lo_blob_free(bfloat);
-	lo_blob_free(bint);
-	lo_blob_free(b1);
-	lo_blob_free(b2);
-*/
-
 	lo_message_free(msg);
-//	free(msg_bytes);
 
 	(*size)=msg_length;;
 
-	//caller must clean up
+	//caller must clean up msg_bytes and blobs (free_blobs())
 	return msg_bytes;
 }
 
-//=============================================================================
-static void dump_memory(unsigned char *q, const uint32_t len)
-{
-	int k;
-	for (k = 0; k <len; k++)
-	{
-		printf("%c",q[k]);
-	}
-	fflush(stdout);
-	fprintf(stderr,"\n");
-}
-
-//=============================================================================
-static uint32_t dump_header(const uint32_t len, const uint32_t prev_pos)
-{
-	lo_message msg=lo_message_new();
-	lo_message_add(msg,"hh",len,prev_pos);
-	const char * path="/.";
-
-	uint32_t msg_length=lo_message_length(msg,path);
-	void * msg_bytes=calloc(msg_length,sizeof(char));
-	size_t size_ret;
-	lo_message_serialise (msg, path, msg_bytes, &size_ret);
-//	fprintf(stderr,"serialized %lu bytes\n",size_ret);
-
-	dump_memory(msg_bytes,size_ret);
-	lo_message_free(msg);
-	free(msg_bytes);
-
-	return size_ret;
-}
-
-//=============================================================================
-static uint32_t test(const int with_header, const uint32_t prev_pos)
-{
-	unsigned char *q=NULL;
-	uint32_t size;
-	uint32_t total_size;
-	q=create_demo_dump(&size);
-//	fprintf(stderr,"==dumping %"PRId32" bytes\n",size);
-
-	total_size=size;
-
-	if(with_header==1)
-	{
-		total_size+=dump_header(size,prev_pos);
-	}
-
-	dump_memory(q,size);
-	free(q);
-
-	return total_size;
-}
-
-//=============================================================================
-static void test_multi()
-{
-	uint32_t size=0;
-	uint32_t pos=0;
-	uint32_t prev_pos=0;
-
-	//create pseudo linked list for experimental parsers
-	int i=0;
-	for(i=0;i<100000;i++)
-//	while(1==1) //check for memory leaks
-	{
-		//write header (/. h) followed by raw osc message
-		prev_pos=pos-size;
-		size=test(1,prev_pos);
-		pos+=size;
-		//clean up all blobs created by test()
-		free_blobs();
-	}
-
 /*
-a) ==header tells next msg is 580 bytes long, prev started at pos 0 //special case (parser can ignore if at pos 0)
-b) ==header tells next msg is 580 bytes long, prev started at pos 0 //first usable reference (to first record at start of file)
-c) ==header tells next msg is 580 bytes long, prev started at pos 604 //start of prev header
-d) ==header tells next msg is 580 bytes long, prev started at pos 1812 //start of prev header
-...
-
-hexdump -s 1812 -n 24 -c osc.dump 
-0000714   /   .  \0  \0   ,   h   h  \0  \0  \0  \0  \0  \0  \0 002   D
-0000724  \0  \0  \0  \0  \0  \0  \a 024                                
-
-*/
-}
-
-//=============================================================================
-int main(int argc, char *argv[])
-{
-	//write raw osc message bytes to stdout
-	test(0,0);
-
-	//write raw osc message bytes to stdout with heder
-//	test(1,0);
-
-//	test_multi();
-	return 0;
-}
-
-//trying to wrap lo_message_add
-//=============================================================================
-static lo_blob b_internal(const char *path, const char *types, ... )
-{
-	lo_message msg=lo_message_new();
-	//const char* path="/";
-
-	va_list ap;
-	va_start(ap, types); //last non-... arg
-
-	//from src/message.c, int lo_message_add(lo_message msg, const char *types, ...)
-	//return lo_message_add_varargs_internal(msg, types, ap, file, line);
-	lo_message_add_varargs(msg,types,ap);
-	//va_end (ap);
-	//some problem here:liblo error: lo_send, lo_message_add, or lo_message_add_varargs called with mismatching types and data at:0, exiting.
-
-	lo_blob b=blob_new(lo_message_length(msg,path),0);
-	size_t size_ret;
-	lo_message_serialise (msg, path, lo_blob_dataptr(b), &size_ret);
-	lo_message_free(msg);
-
-//	fprintf(stderr,"serialized %lu bytes\n",size_ret);
-	fprintf(stderr,"blob size %d bytes\n",lo_blobsize(b));
-
-	//blob to be freed by caller (via free_blobs())
-	return b;
-}
-
-/*
-expected output for this example:
+example output (one message, headerless):
 
 (here base64 encoded)
 
@@ -286,6 +184,8 @@ MODp9sIAAAAAzczMPc3MTD6amZk+zczMPgAAAD+amRk/MzMzP83MTD9mZmY/AFDDRwAAAEAvdGIA
 LGNiAAAAAGkAAAAwYHn+/wAAAAABAAAAAgAAAAMAAAAEAAAABQAAAAYAAAAHAAAACAAAAAkAAACg
 hgEAAAAAQC9iMQAsc2lmAAAAAGEgc3RyaW5nIGdyb3VwZWQgd2l0aCBhbiBpbnQgYW5kIGEgZmxv
 YXQAAAAAAAAAKj37520=
+
+expanded (see expand.c)
 
 /test hfsb (584 bytes)
 h 0
@@ -330,7 +230,5 @@ b(M) /b2 bbbifb (548 bytes)
          s "a string grouped with an int and a float"
          i 42
          f 0.123000
-
-expanded (see expand.c)
 
 */

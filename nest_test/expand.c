@@ -5,6 +5,8 @@
 
 #include "lo/lo.h"
 
+#define HEADER_SIZE 20
+
 /*
 //tb/151101
 
@@ -36,6 +38,9 @@ lo_blob_datasize < lo_blobsize
 static void print_blob(lo_blob b, int indent);
 static void print_indent(int indent);
 static void print_msg(lo_message msg, const char * path, int indent);
+static uint32_t read_header(FILE *f, uint64_t can_read);
+static int print_from_file(const char *filename);
+static int print_from_file_(const char *filename, const int with_header, const uint64_t skip, const uint64_t requested);
 
 static int bflat_pos=0;
 static int vflat_pos=0;
@@ -44,18 +49,24 @@ const static int HEADERLESS=0;
 const static int WITH_HEADER=1;
 
 //=============================================================================
+int main(int argc, char *argv[])
+{
+	//single 'raw' osc message
+//	print_from_file(argv[1]);
+
+	//multiple raw osc messages with size and prev pos header (/. ih)
+	//skipping messages (start at index), process n messages
+//	while(1==1) //check for memory leaks
+	{
+		print_from_file_(argv[1],WITH_HEADER,99998,2);
+//		print_from_file_(argv[1],WITH_HEADER,0,1);
+	}
+	return 0;
+}
+
+//=============================================================================
 static void print_blob(const lo_blob b, int indent)
 {
-/*
-	unsigned char *q = lo_blob_dataptr(b);
-	int k;
-	for (k = 0; k < lo_blob_datasize(b); k++)
-	{
-		fprintf(stderr,"%c",q[k]);
-	}
-	fprintf(stderr,"\n");
-*/
-
 	const char *path = lo_get_path(lo_blob_dataptr(b), lo_blobsize(b));
 
 	if(*path!='/')
@@ -65,7 +76,6 @@ static void print_blob(const lo_blob b, int indent)
 	}
 	else
 	{
-//		fprintf(stderr,"b(M) (%d + %d bytes) ",lo_blobsize(b)-lo_blob_datasize(b),lo_blob_datasize(b));
 		fprintf(stderr,"b(M) ");
 
 		lo_message msg=lo_message_deserialise(lo_blob_dataptr(b),lo_blob_datasize(b),NULL);
@@ -260,31 +270,30 @@ The number of seconds since Jan 1st 1900 in the UTC timezone.
 }
 
 //=============================================================================
-static uint32_t read_header(FILE *f,uint32_t can_read)
+static uint32_t read_header(FILE *f, uint64_t can_read)
 {
-//	const uint32_t header_size=16; //h
-///
-	const uint32_t header_size=24; //hh
+	const uint32_t header_size=HEADER_SIZE; //ih
 
 	if(can_read>header_size)
 	{
-		//try reading /. hh msg
+		//try reading /. ih msg
 		char *bytes = malloc(header_size);
 		fread(bytes, header_size, 1, f);
+
 		const char *path = lo_get_path(bytes, header_size);
 		if(!strcmp(path,"/."))
 		{
 			lo_message msg=lo_message_deserialise(bytes,header_size,NULL);
 			const char *types=lo_message_get_types(msg);
-			if(!strcmp(types,"hh"))
+			if(!strcmp(types,"ih"))
 			{
 				lo_arg ** arg_values=lo_message_get_argv(msg);
 /*
-				fprintf(stderr,"==header tells next msg is %"PRId64" bytes long, prev started at pos %"PRId64"\n"
-					,arg_values[0]->h
+				fprintf(stderr,"==header tells next msg is %"PRId64" bytes long, prev started at pos %"PRId32"\n"
+					,arg_values[0]->i
 					,arg_values[1]->h);
 */
-				uint32_t ret=(uint32_t)arg_values[0]->h;
+				uint32_t ret=arg_values[0]->i;
 				lo_message_free(msg);
 				free(bytes);
 				return ret;
@@ -295,8 +304,15 @@ static uint32_t read_header(FILE *f,uint32_t can_read)
 	return 0;
 }
 
+//wrapper
 //=============================================================================
-static int print_from_file_(const char *filename, const uint32_t with_header, const uint32_t skip, const uint32_t requested)
+static int print_from_file(const char *filename)
+{
+	return print_from_file_(filename,HEADERLESS,0,1);
+}
+
+//=============================================================================
+static int print_from_file_(const char *filename, const int with_header, const uint64_t skip, const uint64_t requested)
 {
 	//http://stackoverflow.com/questions/14002954/c-programming-how-to-read-the-whole-file-contents-into-a-buffer
 	FILE *f=NULL;
@@ -308,14 +324,14 @@ static int print_from_file_(const char *filename, const uint32_t with_header, co
 	}
 
 	fseek(f, 0, SEEK_END);
-	uint32_t can_read = ftell(f);
+	uint64_t can_read = ftell(f);
 	fseek(f, 0, SEEK_SET);
 
 	uint32_t next_msg_size=0;
-	uint32_t cur_pos=0;
+	uint64_t cur_pos=0;
 
-	uint32_t skip_=skip;
-	uint32_t to_go_=requested;
+	uint64_t skip_=skip;
+	uint64_t to_go_=requested;
 
 __next:
 	if(to_go_<1)
@@ -325,6 +341,9 @@ __next:
 		return 0;
 	}
 
+//	can_read-=next_msg_size;
+
+	//test if file size changed
 	cur_pos=ftell(f);
 	fseek(f, 0, SEEK_END);
 	can_read = ftell(f)-cur_pos;
@@ -366,25 +385,4 @@ __next:
 		to_go_--;
 		goto __next;
 	}
-}
-
-//=============================================================================
-static int print_from_file(const char *filename)
-{
-	return print_from_file_(filename,HEADERLESS,0,1);
-}
-
-//=============================================================================
-int main(int argc, char *argv[])
-{
-	//single 'raw' osc message
-	print_from_file(argv[1]);
-
-	//multiple raw osc messages with size and prev pos header (/. hh)
-	//skipping messages (start at index), process n messages
-//	while(1==1) //check for memory leaks
-//	{
-//		print_from_file_(argv[1],WITH_HEADER,99998,2);
-//	}
-	return 0;
 }
