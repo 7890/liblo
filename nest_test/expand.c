@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <inttypes.h>
+#include <string.h>
 
 #include "lo/lo.h"
 
@@ -14,7 +15,6 @@
 
 //also see nest.c
 
-/*
 lo_blobsize:
 A function to calculate the amount of OSC message space required by a lo_blob object.
 Returns the storage size in bytes, which will always be a multiple of four.
@@ -105,7 +105,7 @@ static void print_msg(const lo_message msg, const char * path, int indent)
 	const char *types=lo_message_get_types(msg);
 	lo_arg ** arg_values=lo_message_get_argv(msg);
 
-	fprintf(stderr,"%s %s (%"PRId64" bytes)\n",path,types,lo_message_length(msg,path));
+	fprintf(stderr,"%s %s (%"PRId32" bytes)\n",path,types,(uint32_t)lo_message_length(msg,path));
 
 	if(!strcmp(path,"/tb") && !strcmp(types,"cb"))
 	{
@@ -385,4 +385,6 @@ __next:
 		to_go_--;
 		goto __next;
 	}
+	//satisfy compiler
+	return 0;
 }
