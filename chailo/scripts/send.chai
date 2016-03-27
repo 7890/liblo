@@ -1,0 +1,23 @@
+//create address: IP address or DNS/hostname, port
+var a=OSCAddress("127.0.0.1",7777);
+
+//create message: path
+var m=OSCMessage("/hello");
+
+//send the message (from a random port)
+m.send(a);
+
+//modify message, add another argument
+m.add_string("world");
+
+//send again
+m.send(a);
+
+//create a new message with some arguments and send it
+OSCMessage("/foo").add_args("fisdh",[0.1,1,"at bar",.3e-9,42]).send(a);
+
+//alternative syntax to add arguments, use another address
+OSCMessage("/bar").s("shortcut").f(.9).i(42).send("localhost",7777);
+
+//print a message
+m.pretty();

@@ -1,0 +1,2 @@
+//dump script environment
+dump_system();

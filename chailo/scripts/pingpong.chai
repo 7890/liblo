@@ -1,0 +1,59 @@
+//callbacks, see below how to attach
+def cb_ping(addr,msg)
+{
+	//print message
+	msg.pretty();
+
+	//send back pong with incremented counter
+	OSCMessage("/pong").h(++msg.arg(0)).send(addr);
+}
+def cb_pong(addr,msg)
+{
+	//print message
+	msg.pretty();
+
+	//send back ping with incremented counter
+	OSCMessage("/ping").h(++msg.arg(0)).send(addr);
+}
+
+def cb_generic(addr,msg)
+{
+	addr.pretty();
+	msg.pretty();
+	print(msg.types());
+	print(msg.types().size());
+	print(msg.type(0));
+	print(msg.args());
+	print(msg.args().size());
+	print(msg.arg(0));
+}
+
+//create a server thread on UDP port 7777
+var o=OSCServerThread(7777);
+
+//attach handlers for /ping, /pong
+o.attach("/ping","h","cb_ping");
+o.attach("/pong","h","cb_pong");
+
+//catch all messages not matched by above handlers
+o.attach_generic("cb_generic");
+
+//turn off automatic type conversion (numbers)
+o.enable_type_coercion(0);
+
+//start the server (listening now for incoming messages)
+o.start();
+
+//send initial message to counterpart
+
+//use command line args. arg 0: exe name, arg 1: scriptname, arg 2-n: params for script
+if(args.size()>=4)
+{
+	OSCMessage("/ping").h(0).send(args[2],to_int(args[3]));
+}
+else
+{
+	OSCMessage("/ping").h(0).send("localhost",7777);
+
+}
+//EOF

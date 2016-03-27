@@ -1,0 +1,28 @@
+//the generic method that will be hooked up to the server thread
+//will be called for any incoming message
+def cb_generic(addr,msg)
+{
+	addr.pretty();
+	msg.pretty();
+/*
+	print(msg.types());
+	print(msg.types().size());
+	print(msg.type(0));
+	print(msg.args());
+	print(msg.args().size());
+	print(msg.arg(0));
+	...
+*/
+}
+
+//create a server thread on UDP port 7777
+var o=OSCServerThread(7777);
+
+//catch all messages
+o.attach_generic("cb_generic");
+
+//start the server (listening now for incoming messages)
+o.start();
+
+print("send a message to localhost:7777 (that's me)");
+//EOF

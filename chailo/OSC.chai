@@ -1,0 +1,198 @@
+//tb/test160325
+
+//=============================================================================
+class OSCCallback
+{
+	attr path_filter;
+	attr typetag_filter;
+	attr callback_function;
+	def OSCCallback(path_filter, typetag_filter, callback_function)
+	{
+		this.path_filter=path_filter;
+		this.typetag_filter=typetag_filter;
+		this.callback_function=callback_function;
+	}
+	def call(address,message)
+	{
+		return this.callback_function(address,message);
+	}
+}
+
+//=============================================================================
+class OSCAddress
+{
+	attr host;
+	attr port;
+	def OSCAddress(host,port)
+	{
+		this.host=host;
+		this.port=port;
+	}
+	def pretty()
+	{
+		print("${this.host}:${this.port}");
+	}
+}
+
+//=============================================================================
+class OSCMessage
+{
+	attr path;
+	attr vec_types;
+	attr vec_args;
+	def OSCMessage(path)
+	{
+		this.path=path;
+		this.vec_types=Vector();
+		this.vec_args=Vector();
+	}
+
+	def OSCMessage(path,vtypes,vargs)
+	{
+		this.path=path;
+		this.vec_types=Vector();
+		this.vec_args=Vector();
+		this.add_args(vtypes,vargs);
+	}
+
+	def send(address)
+	{
+		var types="";
+		for(var i=0;i<this.vec_types.size();++i)
+		{
+			//simple += does not work
+			types="${types}${this.vec_types[i]}";
+		}
+		_lo_send(address.host,address.port,this.path,types,this.vec_args);
+	
+		print("sent message to: ${address.host}:${address.port}");
+	}
+
+	def send(host,port)
+	{
+		return this.send(OSCAddress(host,port));
+	}
+
+	def types(){return this.vec_types;}
+	def args(){return this.vec_args;}
+	def type(index){return this.vec_types[index];}
+	def arg(index){return this.vec_args[index];}
+
+	def remove(index)
+	{
+		this.vec_types.erase_at(index);
+		this.vec_args.erase_at(index);
+		return this;
+	}
+
+	///replace, insert, swap, ...
+
+	def add(type,val)
+	{
+		//test valid types
+		//...
+		this.vec_types.push_back(type);
+		this.vec_args.push_back(val);
+		return this;
+	}
+
+	def add_float(val){return this.add("f",val);}
+	def add_double(val){return this.add("d",val);}
+	def add_string(val){return this.add("s",val);}
+	def add_int32(val){return this.add("i",val);}
+	def add_int64(val){return this.add("h",val);}
+	def add_char(val){return this.add("c",val);}
+
+	def f(val){return this.add("f",val);}
+	def d(val){return this.add("d",val);}
+	def s(val){return this.add("s",val);}
+	def i(val){return this.add("i",val);}
+	def h(val){return this.add("h",val);}
+	def c(val){return this.add("c",val);}
+
+	def add_args(types,vargs)
+	{
+		//concat to existing vectors
+		this.vec_types=concat(this.vec_types,types);
+		this.vec_args=concat(this.vec_args,vargs);
+		return this;
+	}
+
+	def pretty(index)
+	{
+		print(" ${index}: ${this.vec_types[index]} ${this.vec_args[index]}");
+		return this;
+	}
+
+	def pretty()
+	{
+		print("${this.path}");
+		for(var i=0;i<this.vec_types.size();++i)
+		{
+			this.pretty(i);
+		}
+		return this;
+	}
+}//end class OSCMessage
+
+//=============================================================================
+class OSCServerThread
+{
+	attr port;
+	attr vec_handlers;
+	attr generic_callback;
+	def OSCServerThread(port)
+	{
+		this.port=port;
+		this.vec_handlers=Vector();
+		//native create server thread
+		_lo_server_thread_new(port);
+		print("OSC server thread created on port: ${this.port}");
+	}
+
+	def attach(path_filter, typetag_filter, callback_function)
+	{
+		//call native function here
+		this.vec_handlers.push_back(OSCCallback(path_filter, typetag_filter, callback_function));
+		_lo_server_thread_add_method(path_filter, typetag_filter, callback_function);
+		print("callback attached: ${callback_function}");
+	}
+
+	def attach_generic(callback_function)
+	{
+		//call native function here
+		this.generic_callback=callback_function;
+		_lo_server_thread_add_method_generic(callback_function);
+		print("generic callback attached: ${callback_function}");
+	}
+
+	///delete
+	//void 	lo_server_del_method (lo_server s, const char *path, const char *typespec)
+
+	def start()
+	{
+		//native start server thread
+		_lo_server_thread_start();
+		print("OSC server started");
+	}
+
+	def enable_type_coercion(int_bool)
+	{
+		_lo_server_enable_coercion(int_bool);
+	}
+
+	def send(address,message)
+	{
+		message.send(address);
+	}
+
+	def send(host,port,message)
+	{
+		message.send(host,port);
+	}
+	def send(host,port,path,types,vargs)
+	{
+		OSCMessage(path).add_args(types,vargs).send(host,port);
+	}
+}//end class OSCServerThread
+//EOF
