@@ -63,7 +63,7 @@ class OSCMessage
 			//simple += does not work
 			types="${types}${this.vec_types[i]}";
 		}
-		_lo_send(address.host,address.port,this.path,types,this.vec_args);
+		_lo_message_send(address.host,address.port,this.path,types,this.vec_args);
 	
 		print("sent message to: ${address.host}:${address.port}");
 	}
@@ -133,6 +133,17 @@ class OSCMessage
 		}
 		return this;
 	}
+
+	def hexdump()
+	{
+		var types="";
+		for(var i=0;i<this.vec_types.size();++i)
+		{
+			types="${types}${this.vec_types[i]}";
+		}
+		_lo_message_hexdump(this.path,types,this.vec_args);
+	}
+
 }//end class OSCMessage
 
 //=============================================================================

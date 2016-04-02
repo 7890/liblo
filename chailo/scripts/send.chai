@@ -21,3 +21,6 @@ OSCMessage("/bar").s("shortcut").f(.9).i(42).send("localhost",7777);
 
 //print a message
 m.pretty();
+
+//hexdump of message
+OSCMessage("/message/to/dump").s("hello world").f(.9).i(42).add_args("fff",[.1,.2,.3]).hexdump();

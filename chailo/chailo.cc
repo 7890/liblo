@@ -10,12 +10,16 @@
 #include <chaiscript/chaiscript.hpp>
 #include <chaiscript/chaiscript_stdlib.hpp>
 
+#include "hexdump.h"
+
 //tb/1603
 //test chaiscript with liblo
 //g++ -std=c++0x -o example2 example2.cpp `pkg-config --libs --cflags chaiscript liblo` -ldl
 
 lo_server_thread st=NULL;
 chaiscript::ChaiScript *chai=NULL;
+
+static const char* hexdump_header="= hexdump ===============================================================";
 
 //=============================================================================
 int generic_handler(const char *path, const char *types, lo_arg ** argv,
@@ -100,18 +104,14 @@ void _lo_server_thread_add_method_generic(const std::string &callback_name)
 }
 
 //=============================================================================
-void _lo_send(
-	const std::string &host
-	,const int &port
+void process_chai_message(
+	lo_message &m
 	,const std::string &path
 	,const std::string &types
 	,const std::vector<chaiscript::Boxed_Value> &vargs
+
 )
 {
-//	fprintf(stderr,"_send called size types %zu args %zu\n",types.size(),vargs.size());
-	lo_address a=lo_address_new(host.c_str(), (std::to_string(port)).c_str());
-	lo_message m=lo_message_new();
-
 	int i=0;
 	for(;i<types.size();i++)
 	{
@@ -147,6 +147,23 @@ void _lo_send(
 			fprintf(stderr,"unknown type: %c\n",c);
 		}
 	}
+}//end process_chai_message()
+
+//=============================================================================
+void _lo_message_send(
+	const std::string &host
+	,const int &port
+	,const std::string &path
+	,const std::string &types
+	,const std::vector<chaiscript::Boxed_Value> &vargs
+)
+{
+//	fprintf(stderr,"_send called size types %zu args %zu\n",types.size(),vargs.size());
+	lo_address a=lo_address_new(host.c_str(), (std::to_string(port)).c_str());
+	lo_message m=lo_message_new();
+
+	process_chai_message(m,path,types,vargs);
+
 	lo_send_message(a,path.c_str(),m);
 	lo_address_free(a);
 	lo_message_free(m);
@@ -156,6 +173,28 @@ void _lo_send(
 void _lo_server_enable_coercion(const int &int_bool)
 {
 	lo_server_enable_coercion (lo_server_thread_get_server(st), int_bool);
+}
+
+//=============================================================================
+void _lo_message_hexdump(
+	const std::string &path
+	,const std::string &types
+	,const std::vector<chaiscript::Boxed_Value> &vargs
+)
+{
+	lo_message m=lo_message_new();
+	process_chai_message(m,path,types,vargs);
+	size_t mlen=lo_message_length(m,path.c_str());
+	void *mbuf=malloc(mlen);
+	lo_message_serialise(m,path.c_str(),mbuf,NULL);
+/*
+= hexdump ===============================================================
+  0000  2f 68 65 6c 6c 6f 00 00 2c 73 00 00 77 6f 72 6c  /hello..,s..worl
+  0010  64 00 00 00                                      d...
+*/
+	hexdump (hexdump_header,mbuf, mlen);
+	lo_message_free(m);
+	free(mbuf);
 }
 
 //=============================================================================
@@ -174,7 +213,9 @@ int main(int argc, char *argv[])
 	chai->add(chaiscript::fun(_lo_server_thread_add_method), "_lo_server_thread_add_method");
 	chai->add(chaiscript::fun(_lo_server_thread_add_method_generic), "_lo_server_thread_add_method_generic");
 	chai->add(chaiscript::fun(_lo_server_enable_coercion), "_lo_server_enable_coercion");
-	chai->add(chaiscript::fun(_lo_send), "_lo_send");
+	chai->add(chaiscript::fun(_lo_message_send), "_lo_message_send");
+	chai->add(chaiscript::fun(_lo_message_hexdump), "_lo_message_hexdump");
+
 
 	std::stringstream ss_args;
 	//"import" OSC specific classes to script environment
