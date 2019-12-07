@@ -49,7 +49,6 @@ int main(int argc, char *argv[])
     int desired_max_tcp_size=atoi(argv[1]);
 
     const char *port = "7890";
-    int do_send = 0;
 
     /* start a new server on port 7770 */
     lo_server_thread st = lo_server_thread_new_with_proto(port, LO_TCP, error);
@@ -100,9 +99,9 @@ int default_handler(const char *path, const char *types, lo_arg ** argv,
     int i;
     lo_message m = (lo_message)data;
     lo_address a = lo_message_get_source(m);
-    lo_server s = (lo_server)user_data;
-    const char *host = lo_address_get_hostname(a);
-    const char *port = lo_address_get_port(a);
+//    lo_server s = (lo_server)user_data;
+//    const char *host = lo_address_get_hostname(a);
+//    const char *port = lo_address_get_port(a);
 
     count ++;
 
